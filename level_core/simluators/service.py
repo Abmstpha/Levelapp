@@ -243,10 +243,17 @@ class ConversationSimulator:
             output_text=extracted_reply,
             reference_text=reference_reply,
         )
+        litellm_eval_task = self.evaluation_service.evaluate_response(
+            provider="litellm",
+            output_text=extracted_reply,
+            reference_text=reference_reply,
+        )
 
-        openai_reply_evaluation, ionos_reply_evaluation = await asyncio.gather(openai_eval_task, ionos_eval_task)
+
+        openai_reply_evaluation, ionos_reply_evaluation, litellm_reply_evaluation = await asyncio.gather(openai_eval_task, ionos_eval_task, litellm_eval_task)
 
         return {
             "openai": openai_reply_evaluation,
             "ionos": ionos_reply_evaluation,
+            "litellm": litellm_reply_evaluation,
         }

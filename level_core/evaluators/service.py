@@ -7,7 +7,7 @@ from logging import Logger
 from typing import Dict, Literal
 
 from pydantic import ValidationError
-
+from .litellm import LiteLLMEvaluator
 from .base import BaseEvaluator
 from .schemas import EvaluationConfig, EvaluationResult
 from .openai import OpenAIEvaluator
@@ -38,6 +38,8 @@ class EvaluationService:
                     "api_url": os.path.expandvars(raw_cfg.get("api_url", "")),
                     "model_id": os.path.expandvars(raw_cfg.get("model_id", "")),
                 }
+                if provider_name == "litellm":
+                     cfg["provider"] = os.path.expandvars(raw_cfg.get("provider", ""))
 
                 # Skip providers without an API key
                 if not cfg["api_key"]:
@@ -59,7 +61,7 @@ class EvaluationService:
 
         self.logger.info(f"[EvaluationService] Loaded providers: {list(self.configs.keys())}")
 
-    def _select_evaluator(self, provider: Literal["ionos", "openai"]) -> BaseEvaluator:
+    def _select_evaluator(self, provider: Literal["ionos", "openai", "litellm"]) -> BaseEvaluator:
         """
         Factory method to return the correct evaluator instance.
 
@@ -76,6 +78,7 @@ class EvaluationService:
         evaluator_map = {
             "ionos": IonosEvaluator,
             "openai": OpenAIEvaluator,
+            "litellm": LiteLLMEvaluator,
         }
 
         if provider not in self.configs:
@@ -95,7 +98,7 @@ class EvaluationService:
         except ValidationError as e:
             raise ValueError(f"Invalid configuration for '{provider}': {e.errors()}")
 
-    async def evaluate_response(self,provider: Literal["ionos", "openai"],
+    async def evaluate_response(self,provider: Literal["ionos", "openai", "litellm"],
         output_text: str,
         reference_text: str,
         user_message: str | None = None

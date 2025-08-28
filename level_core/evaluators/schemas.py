@@ -14,6 +14,8 @@ class EvaluationConfig(BaseModel):
     api_url: Union[str, None] = None
     api_key: Union[str, None] = None
     model_id: Union[str, None] = None
+    provider: Optional[str] = None
+    llm_config: Dict = {}
 
     llm_config: Dict = {
         "top-k": 5,
