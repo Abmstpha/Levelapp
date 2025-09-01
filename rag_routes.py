@@ -50,15 +50,11 @@ def get_config():
     return config
 
 def get_evaluation_service(config: Dict[str, str] = Depends(get_config)):
-    """Get evaluation service instance with provider configs."""
     from logging import Logger
     svc = EvaluationService(logger=Logger("RAGEvaluation"))
-    # Configure OpenAI if key present
-    if config.get("openai_api_key"):
-        svc.set_config("openai", EvaluationConfig(api_key=config["openai_api_key"], model_id="gpt-4o-mini"))
-    # Configure IONOS if key present
-    if config.get("ionos_api_key"):
-        svc.set_config("ionos", EvaluationConfig(api_key=config["ionos_api_key"], api_url=os.getenv("IONOS_API_URL", "https://api.ionos.ai"), model_id=os.getenv("IONOS_MODEL_ID", "")))
+    # Remove or comment out the following lines:
+    # if config.get("ionos_api_key"):
+    #     svc.set_config("ionos", EvaluationConfig(api_key=config["ionos_api_key"], api_url=os.getenv("IONOS_API_URL", "https://api.ionos.ai"), model_id=os.getenv("IONOS_MODEL_ID", "")))
     return svc
 
 def get_generation_service(config: Dict[str, str] = Depends(get_config)):
