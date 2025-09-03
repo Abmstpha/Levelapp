@@ -49,6 +49,8 @@ class ConversationSimulator:
         """
         self.endpoint = endpoint
         self.headers = headers
+        # Extract model_id from headers for auto-routing
+        self.model_id = headers.get("x-model-id", "gpt-4o-mini")
 
     async def run_batch_test(self, name: str, test_load: Dict[str, Any], attempts: int = 1) -> Dict[str, Any]:
         """
@@ -211,49 +213,8 @@ class ConversationSimulator:
             }
             results.append(result)
         return  results
-    async def evaluate_interaction(
-            self,
-            extracted_reply: str,
-            reference_reply: str,
-            # extracted_metadata: Dict[str, Any],
-            # reference_metadata: Dict[str, Any],
-            # scenario_title: str
-    ):
-    # -> InteractionEvaluationResult:
-        """
-        Evaluate an interaction using OpenAI and Ionos evaluation services.
-
-        Args:
-            extracted_vla_reply (str): The extracted VLA reply.
-            reference_vla_reply (str): The reference VLA reply.
-            extracted_metadata (Dict[str, Any]): The extracted metadata.
-            reference_metadata (Dict[str, Any]): The reference metadata.
-
-        Returns:
-            InteractionEvaluationResult: The evaluation results.
-        """
-        openai_eval_task = self.evaluation_service.evaluate_response(
-            provider="openai",
-            output_text=extracted_reply,
-            reference_text=reference_reply,
-        )
-
-        ionos_eval_task = self.evaluation_service.evaluate_response(
-            provider="ionos",
-            output_text=extracted_reply,
-            reference_text=reference_reply,
-        )
-        litellm_eval_task = self.evaluation_service.evaluate_response(
-            provider="litellm",
-            output_text=extracted_reply,
-            reference_text=reference_reply,
-        )
-
-
-        openai_reply_evaluation, ionos_reply_evaluation, litellm_reply_evaluation = await asyncio.gather(openai_eval_task, ionos_eval_task, litellm_eval_task)
-
-        return {
-            "openai": openai_reply_evaluation,
-            "ionos": ionos_reply_evaluation,
-            "litellm": litellm_reply_evaluation,
-        }
+    async def evaluate_interaction(self, extracted_reply: str, reference_reply: str):
+        """Evaluate an interaction using auto-routing based on model_id."""
+        model_id = getattr(self, 'model_id', 'gpt-4o-mini')
+        result = await self.evaluation_service.auto_evaluate_response(model_id=model_id, output_text=extracted_reply, reference_text=reference_reply)
+        return {"auto_routed": result, "provider_used": result.metadata.get("auto_routed_provider", "unknown"), "model_id": model_id}

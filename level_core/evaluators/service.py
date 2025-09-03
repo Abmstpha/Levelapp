@@ -13,6 +13,7 @@ from .schemas import EvaluationConfig, EvaluationResult
 from .openai import OpenAIEvaluator
 from .ionos import IonosEvaluator
 from .utils import extract_key_point
+from .resolver import resolve_model
 from config.loader import load_config
 
 
@@ -150,3 +151,21 @@ class EvaluationService:
             "key_point_method": "heuristic_v1"
         })
         return result
+
+    async def auto_evaluate_response(self, model_id: str, output_text: str, reference_text: str, user_message: str | None = None) -> EvaluationResult:
+        """Auto-route evaluation based on model_id."""
+        spec = resolve_model(model_id)
+        api_key = os.getenv(spec.api_key_env)
+        if not api_key:
+            raise RuntimeError(f"Missing API key: {spec.api_key_env}")
+        
+        config = EvaluationConfig(provider=spec.provider, api_url=spec.api_base, api_key=api_key, model_id=spec.model, llm_config={})
+        evaluator = IonosEvaluator(config=config, logger=self.logger) if spec.provider == "ionos" else LiteLLMEvaluator(config=config, logger=self.logger)
+        
+        try:
+            result = await evaluator.evaluate(generated_text=output_text, expected_text=reference_text, user_message=user_message)
+            result.metadata = result.metadata or {}
+            result.metadata["auto_routed_provider"] = spec.provider
+            return result
+        except Exception as e:
+            return EvaluationResult(match_level=0, justification="", metadata={"error": str(e), "provider": spec.provider})
