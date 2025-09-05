@@ -20,8 +20,10 @@ class LiteLLMEvaluator:
         self.config = config
         self.logger = logger or logging.getLogger("LiteLLMEvaluator")
         
-        # Setup model with fallback
-        model = config.model_id.strip() if config.model_id else "gpt-4o-mini"
+        # Setup model (must be provided)
+        if not config.model_id:
+            raise ValueError("model_id is required for LiteLLM evaluator")
+        model = config.model_id.strip()
         
         # Configure LangChain ChatLiteLLM
         self.chat = ChatLiteLLM(

@@ -70,7 +70,8 @@ class MainEvaluationRequest(BaseModel):
     
     test_batch: Dict[str, Any] = Field(description="The test batch data from batch_test.json format")
     endpoint: str = Field(default="http://localhost:8000", description="LLM endpoint to test against")
-    model_id: str = Field(default="meta-llama/Llama-3.3-70B-Instruct", description="Model ID for headers")
+    model_id: str = Field(default="", description="Optional Model ID for chatbot headers (if backend requires x-model-id)")
+    evaluator_model: str = Field(description="Model ID for evaluation (LLM-as-judge)")
     attempts: int = Field(default=1, description="Number of test attempts")
     test_name: str = Field(default="api_test", description="Name for the test run")
     user_id: str
@@ -106,14 +107,14 @@ async def main_evaluate(request: MainEvaluationRequest):
         simulator = ConversationSimulator(conversations_batch, evaluation_service)
         
         # Setup simulator with endpoint and headers
-        headers = {
-            "Content-Type": "application/json",
-            "x-model-id": request.model_id
-        }
+        headers = {"Content-Type": "application/json"}
+        if request.model_id:  # Only add x-model-id if provided
+            headers["x-model-id"] = request.model_id
         
         simulator.setup_simulator(
             endpoint=request.endpoint,
-            headers=headers
+            headers=headers,
+            evaluation_model_id=request.evaluator_model  # For LLM-as-judge
         )
         
         # Run the batch test (this is the main work)

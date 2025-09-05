@@ -39,18 +39,21 @@ class ConversationSimulator:
         self.execution_events = []  # Collect execution events instead of logging
 
 
-    def setup_simulator(self, endpoint: str, headers: Dict[str, str]):
+    def setup_simulator(self, endpoint: str, headers: Dict[str, str], evaluation_model_id: str):
         """
         Set up the simulator with endpoint and headers.
 
         Args:
             endpoint (str): The endpoint URL for the simulator.
             headers (Dict[str, str]): HTTP headers for requests.
+            evaluation_model_id (str): Model ID for evaluation (LLM-as-judge).
         """
         self.endpoint = endpoint
         self.headers = headers
-        # Extract model_id from headers for auto-routing
-        self.model_id = headers.get("x-model-id", "gpt-4o-mini")
+        # Use separate model for evaluation (LLM-as-judge)
+        self.evaluation_model_id = evaluation_model_id
+        # Extract model_id from headers (optional - some backends have predefined models)
+        self.model_id = headers.get("x-model-id", "backend-predefined")
 
     async def run_batch_test(self, name: str, test_load: Dict[str, Any], attempts: int = 1) -> Dict[str, Any]:
         """
@@ -214,7 +217,7 @@ class ConversationSimulator:
             results.append(result)
         return  results
     async def evaluate_interaction(self, extracted_reply: str, reference_reply: str):
-        """Evaluate an interaction using auto-routing based on model_id."""
-        model_id = getattr(self, 'model_id', 'gpt-4o-mini')
-        result = await self.evaluation_service.auto_evaluate_response(model_id=model_id, output_text=extracted_reply, reference_text=reference_reply)
-        return {"auto_routed": result, "provider_used": result.metadata.get("auto_routed_provider", "unknown"), "model_id": model_id}
+        """Evaluate an interaction using auto-routing based on evaluation_model_id."""
+        evaluation_model_id = getattr(self, 'evaluation_model_id')
+        result = await self.evaluation_service.auto_evaluate_response(evaluator_model=evaluation_model_id, output_text=extracted_reply, reference_text=reference_reply)
+        return {"auto_routed": result, "provider_used": result.metadata.get("provider", "unknown"), "model_id": evaluation_model_id}

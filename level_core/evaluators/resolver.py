@@ -15,24 +15,8 @@ class Spec(dict):
 
 def normalize_for_litellm(model_id: str) -> Spec:
     """Normalize model_id to provider-specific configuration for LiteLLM."""
-    if model_id.startswith(("gpt-", "o", "text-")):
-        return Spec(provider="openai", model=model_id, 
-                   api_base="https://api.openai.com/v1", api_key_env="OPENAI_API_KEY")
-    
-    if model_id.startswith("mistral") or model_id.startswith("mistral/"):
-        model = model_id.split("/", 1)[-1] if "/" in model_id else model_id
-        return Spec(provider="mistral", model=model,
-                   api_base="https://api.mistral.ai/v1", api_key_env="MISTRAL_API_KEY")
-    
-    if model_id.startswith("claude-"):
-        return Spec(provider="anthropic", model=model_id,
-                   api_base="https://api.anthropic.com/v1", api_key_env="ANTHROPIC_API_KEY")
-    
-    if "/" in model_id:
-        return Spec(provider="huggingface-router", model=model_id,
-                   api_base="https://router.huggingface.co/v1", api_key_env="HUGGINGFACE_API_KEY")
-    
-    raise ValueError(f"Unrecognized model id pattern: {model_id}")
+    # ALL models should use LiteLLM provider, which handles routing internally
+    return Spec(provider="litellm", model=model_id)
 
 def _ionos_has(model_id: str) -> bool:
     """Check if IONOS hub has the specified model available."""
@@ -48,21 +32,18 @@ def _ionos_has(model_id: str) -> bool:
         return False
 
 def resolve_model(model_id: str) -> Spec:
-    """Resolve model_id to the appropriate provider configuration."""
-    # Prefer your infra if it carries the same canonical ID
+    """Binary choice: IONOS if available, otherwise LiteLLM."""
+    # Check if IONOS has this model
     if _ionos_has(model_id):
         # Map canonical name to IONOS UUID for /predictions endpoint
         ionos_uuid = IONOS_MODEL_MAPPING.get(model_id)
         if not ionos_uuid:
             raise ValueError(f"IONOS model '{model_id}' found in catalog but no UUID mapping configured")
         
-        # Use existing IonosEvaluator with UUID and exact config from main branch
         import os
         ionos_base = os.getenv("IONOS_ENDPOINT", "https://inference.de-txl.ionos.com/models")
         return Spec(provider="ionos", model=ionos_uuid, 
                    api_base=ionos_base, api_key_env="IONOS_API_KEY")
     
-    try:
-        return normalize_for_litellm(model_id)
-    except ValueError:
-        raise ValueError(f"Model '{model_id}' not found in IONOS or supported providers")
+    # Otherwise, use LiteLLM (handles all other providers)
+    return Spec(provider="litellm", model=model_id, api_key_env="OPENAI_API_KEY")

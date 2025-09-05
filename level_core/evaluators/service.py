@@ -152,9 +152,9 @@ class EvaluationService:
         })
         return result
 
-    async def auto_evaluate_response(self, model_id: str, output_text: str, reference_text: str, user_message: str | None = None) -> EvaluationResult:
-        """Auto-route evaluation based on model_id."""
-        spec = resolve_model(model_id)
+    async def auto_evaluate_response(self, evaluator_model: str, output_text: str, reference_text: str, user_message: str | None = None) -> EvaluationResult:
+        """Auto-route evaluation based on evaluator_model."""
+        spec = resolve_model(evaluator_model)
         api_key = os.getenv(spec.api_key_env)
         if not api_key:
             raise RuntimeError(f"Missing API key: {spec.api_key_env}")
@@ -165,7 +165,7 @@ class EvaluationService:
         try:
             result = await evaluator.evaluate(generated_text=output_text, expected_text=reference_text, user_message=user_message)
             result.metadata = result.metadata or {}
-            result.metadata["auto_routed_provider"] = spec.provider
+            result.metadata["provider"] = spec.provider
             return result
         except Exception as e:
             return EvaluationResult(match_level=0, justification="", metadata={"error": str(e), "provider": spec.provider})
